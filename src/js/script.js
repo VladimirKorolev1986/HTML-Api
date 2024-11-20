@@ -1,146 +1,113 @@
-let coordinates = null;
+        // Массив для хранения информации о маркерах
+        let markersData = [];
 
-function getCoordinates() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(showPosition, showError);
-    } else {
-        alert("Geolocation is not supported by this browser.");
-    }
+        // Функция для получения текущих координат
+        function getUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    
+                    // Создаем карту с центром на полученных координатах
+                    createMap(latitude, longitude);
+                }, function(error) {
+                    alert('Не удалось получить ваше местоположение.');
+                });
+            } else {
+                console.log("Ваш браузер не поддерживает Geolocation.");
+            }
+        }
 
-}
+        // Функция для создания карты
+        function createMap(lat, lng) {
+            ymaps.ready(function () {
+                var myMap = new ymaps.Map('map', {
+                    center: [lat, lng],
+                    zoom: 10,
+                    controls: ['zoomControl', 'routePanelControl']
+                });
 
-showPosition = function (position) {
-    coordinates = {latitude: position.coords.latitude, longitude: position.coords.longitude};
-    console.log("Coordinates from global var:", coordinates);
-    document.getElementById("coordinates").innerHTML = "Широта: " + coordinates.latitude + "<br>Долгота: " + coordinates.longitude;
-}
-
-
-function showError(error) {
-    switch (error.code) {
-        case error.PERMISSION_DENIED:
-            alert("User denied the request for Geolocation.");
-            break;
-        case error.POSITION_UNAVAILABLE:
-            alert("Location information is unavailable.");
-            break;
-        case error.TIMEOUT:
-            alert("The request to get user location timed out.");
-            break;
-        case error.UNKNOWN_ERROR:
-            alert("An unknown error occurred.");
-            break;
-    }
-}
-
-// Пример вызова функции (убедитесь, что у вас есть элемент с id="coordinates" в HTML):
-getCoordinates();
-console.log("Coordinates outside function:", coordinates); // Доступ к координатам за пределами функции
-
-// function getLocation() {
-//     if (navigator.geolocation) {
-//       navigator.geolocation.getCurrentPosition(showPosition, showError);
-//     } else {
-//       alert("Geolocation is not supported by this browser.");
-//     }
-//   }
-
-// let latitude = 0;
-// let longitude = 0;
-
-// function showPosition(position) {
-//   latitude = position.coords.latitude;
-//   longitude = position.coords.longitude;
-
-//   // Сохраняем координаты в переменную
-//   const coordinates = { latitude, longitude };
-
-//   // Теперь вы можете использовать переменную coordinates
-//   document.getElementById('coords').innerHTML = `
-//   Ваши координаты: 
-//   Широта ${coordinates.latitude}
-//   Долгота ${coordinates.longitude}
-//     `
-
-//   // Пример сохранения в localStorage (не рекомендуется для больших объемов данных)
-//   localStorage.setItem("coordinates", JSON.stringify(coordinates));
-//   // console.log(`Информация из LocalStorage ${localStorage.getItem("coordinates")}`)
-//   // Или другое действие с координатами
-// }
-
-// let ls = localStorage.getItem('coordinates')
-// console.log(ls)
-
-
-// function showError(error) {
-//   switch (error.code) {
-//     case error.PERMISSION_DENIED:
-//       alert("User denied the request for Geolocation.");
-//       break;
-//     case error.POSITION_UNAVAILABLE:
-//       alert("Location information is unavailable.");
-//       break;
-//     case error.TIMEOUT:
-//       alert("The request to get user location timed out.");
-//       break;
-//     case error.UNKNOWN_ERROR:
-//       alert("An unknown error occurred.");
-//       break;
-//   }
-// }
-
-localStorage.setItem('longitude', coordinates.longitude)
-
-
-function init() {
-
-  let myMap = new ymaps.Map("map-test", {
-    center: [coordinates.latitude, coordinates.longitude],
-    zoom: 10,
-    controls: ["routePanelControl"],
-  });
-
-  myMap.events.add('click', function (e) {
-    const coords = e.get('coords'); // Получаем координаты клика
-    console.log(coords)
-  
-    // Создаем метку
-    const myPlacemark = new ymaps.Placemark(coords, {
-      // Свойства метки
-      balloonContent: `Широта: ${coords[0]}, Долгота: ${coords[1]}` // Контент балуна
-    }, {
-      // Опции метки
-      preset: 'islands#redDotIcon', // Иконка метки.
-      draggable: true // Возможность перетаскивать метку
-    });
+                let control = myMap.controls.get('routePanelControl')
+                control.routePanel.state.set({
+                    type: 'masstransit',
     
-    // Добавляем метку на карту
-    myMap.geoObjects.add(myPlacemark);  
-  
-    // Обработка перетаскивания метки (опционально)
-    myPlacemark.events.add('dragend', function (e) {
-      const newCoords = e.get('target').geometry.getCoordinates();
-      myPlacemark.balloon.setContent(`Широта: ${newCoords[0]}, Долгота: ${newCoords[1]}`);
-      
-    });
-    
-  });
+                  // TODO   доделать роут панель
+                })
+
+                var myPlacemark = new ymaps.Placemark([lat, lng], {}, {
+                  preset: 'islands#blueDotIcon'
+              });
+              myMap.geoObjects.add(myPlacemark);
+
+                // Восстанавливаем маркеры из localStorage
+                restoreMarkersFromLocalStorage(myMap);
+
+                // Обрабатываем клик по карте для добавления нового маркера
+                myMap.events.add('click', function(e) {
+                    var coords = e.get('coords');
+
+                    // Создаем новый маркер
+                    var marker = new ymaps.Placemark(coords, {}, {
+                        preset: 'islands#blueDotIcon'
+                    });
+
+                    // Добавляем маркер на карту
+                    myMap.geoObjects.add(marker);
+
+                    // Сохраняем информацию о новом маркере в массив
+                    markersData.push({ lat: coords[0].toFixed(6), lng: coords[1].toFixed(6) });
+
+                    // Сохраняем маркеры в localStorage
+                    saveMarkersToLocalStorage();
+                });
+            });
+        }
+
+        // Функция для сохранения маркеров в localStorage
+        function saveMarkersToLocalStorage() {
+            localStorage.setItem('markers', JSON.stringify(markersData));
+        }
 
 
-  let control = myMap.controls.get("routePanelControl");
-  let location = ymaps.geolocation.get();
+        // Удаляем все маркеры
+        const remover = document.getElementById('remover')
+        remover.addEventListener('click', () => {
+          localStorage.clear();
+        })
 
-  location.then(function (res) {
-    let locationText = res.geoObjects.get(0).properties.get("text");
-    console.log(locationText);
 
-    control.routePanel.state.set({
-      type: "masstransit",
-      fromEnabled: true,
-      from: locationText,
-      toEnabled: true,
-    });
-  });
-}
-ymaps.ready(init);
 
+        // Функция для восстановления маркеров из localStorage
+        function restoreMarkersFromLocalStorage(map) {
+            // Читаем данные из localStorage
+            var storedMarkers = localStorage.getItem('markers');
+
+            if (storedMarkers) {
+                try {
+                    markersData = JSON.parse(storedMarkers);
+
+                    for (var i = 0; i < markersData.length; i++) {
+                        var marker = new ymaps.Placemark(
+                            [markersData[i].lat, markersData[i].lng],
+                            {},
+                            { preset: 'islands#blueDotIcon' }
+                        );
+
+                        map.geoObjects.add(marker);
+                    }
+                } catch (e) {
+                    console.error('Ошибка при восстановлении маркеров:', e);
+                }
+            }
+        }
+
+        // Проверим, есть ли данные о предыдущих координатах в localStorage
+        let lat = localStorage.getItem('latitude');
+        let lng = localStorage.getItem('longitude');
+
+        if (lat && lng) {
+            // Если есть данные, создаем карту сразу с ними
+            createMap(parseFloat(lat), parseFloat(lng));
+        } else {
+            getUserLocation(); // Иначе запрашиваем текущие координаты
+        }
