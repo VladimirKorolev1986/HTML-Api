@@ -18,6 +18,8 @@
             }
         }
 
+
+
         // Функция для создания карты
         function createMap(lat, lng) {
             ymaps.ready(function () {
@@ -27,12 +29,19 @@
                     controls: ['zoomControl', 'routePanelControl']
                 });
 
+                // Создаем Роут панель
                 let control = myMap.controls.get('routePanelControl')
+                    
+
                 control.routePanel.state.set({
                     type: 'masstransit',
-    
-                  // TODO   доделать роут панель
+                    fromEnabled: true,
+                    from: `${lat}` + ' ' + `${lng}`,
+                    toEnabled: true,
+
                 })
+
+                
 
                 var myPlacemark = new ymaps.Placemark([lat, lng], {}, {
                   preset: 'islands#blueDotIcon'
@@ -103,7 +112,9 @@
 
         // Проверим, есть ли данные о предыдущих координатах в localStorage
         let lat = localStorage.getItem('latitude');
-        let lng = localStorage.getItem('longitude');
+        let lng = localStorage.getItem('longitude');    
+
+  
 
         if (lat && lng) {
             // Если есть данные, создаем карту сразу с ними
@@ -111,3 +122,4 @@
         } else {
             getUserLocation(); // Иначе запрашиваем текущие координаты
         }
+
